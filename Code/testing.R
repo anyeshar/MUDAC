@@ -1,6 +1,6 @@
 #test
 library(tidyverse)
-districts<-read_csv("~/Documents/MUDAC/Data/district_fips_code.csv")
+districts<-read_csv("~/Documents/MUDAC/Data/districts.csv")
 districts[districts==-8]<-NA
 
 district_fips_code<-read_csv("~/Documents/MUDAC/Data/district_fips_code.csv")
@@ -36,7 +36,7 @@ test_dockets<-read_csv("~/Documents/MUDAC/Data/train_dockets.csv")
 test_dockets$outcome<-factor(test_dockets$outcome)
 levels(test_dockets$outcome)[5]<-"Other"
 test_dockets$outcome<-factor(test_dockets$outcome, levels=c("Dismissed", "Summary Judgment", "Settled", "Other"))
-test_dockets[train_dockets==-8]<-NA
+test_dockets[test_dockets==-8]<-NA
 
 test_other_motions<-read_csv("~/Documents/MUDAC/Data/test_other_motions.csv")
 test_other_motions[test_other_motions==-8]<-NA
@@ -120,18 +120,11 @@ train_other_motions %>%
   select(mudac_id, motion_type) %>% 
   summarise(total_motion=n()) %>% 
   filter(total_motion>=1) %>% left_join(train_dockets, by = "mudac_id") %>% 
-  select(mudac_id, motion_type, outcome)
-
-train_other_motions %>% 
-  group_by(mudac_id, motion_type) %>% 
-  select(mudac_id, motion_type) %>% 
-  summarise(total_motion=n()) %>% 
-  filter(total_motion>=1) %>% 
-  dim()
-
-
-
-
+  select(mudac_id, motion_type, outcome) %>% 
+  ggplot(aes(x=outcome))+
+  geom_bar(aes(fill=outcome))+
+  facet_wrap(~motion_type)+
+  coord_flip()+labs(title="Outcomes Related to Various Terminating Motions Filed")
 
 
 
