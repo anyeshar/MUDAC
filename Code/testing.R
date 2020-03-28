@@ -248,3 +248,4 @@ other_terminating_motions.goodtest$expected
 # # 6 NA                 273
 
 
+demographics<-read_csv("~/Documents/MUDAC/Data/DEC_10_DP_DPDP1_with_ann.csv")
