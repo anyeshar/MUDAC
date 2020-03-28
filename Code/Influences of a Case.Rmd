@@ -9,11 +9,18 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
+library(forcats)
+
 train_dockets <- read_csv("~/MUDAC/Data/train_dockets.csv")
-test_dockets <- read_csv("~/MUDAC/Data/test_dockets.csv")
-districts <- read_csv("~/MUDAC/Data/districts.csv")
-train_other_motions<-read_csv("~/MUDAC/Data/test_other_motions.csv")
+train_other_motions<-read_csv("~/MUDAC/Data/train_other_motions.csv")
 train_terminating_motions<-read.csv("~/MUDAC/Data/train_terminating_motions.csv")
+
+districts <- read_csv("~/MUDAC/Data/districts.csv")
+district_fips_code<-read_csv("~/MUDAC/Data/district_fips_code.csv")
+
+test_dockets <- read_csv("~/MUDAC/Data/test_dockets.csv")
+test_other_motions <- read.csv("~/MUDAC/Data/test_other_motions.csv")
+test_terminating_motions<-read.csv("~/MUDAC/Data/test_terminating_motions.csv")
 ```
 
 ## R Markdown
@@ -24,17 +31,41 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ```{r Data Cleaning}
 train_dockets <- replace(train_dockets, train_dockets == -8, NA)
+districts[districts==-8]<-NA
+district_fips_code[district_fips_code==-8]<-NA
 
-train_total_motions <- train_terminating_motions %>% 
-  group_by(mudac_id, motion_type) %>% 
-  summarise(total_motion=n()) %>% 
-  pivot_wider(values_from=total_motion,
-              names_from=motion_type)
-  
-train_dockets %>% 
-  mutate(outcome = factor(outcome, levels=c("Settled", "Dismissed", "Summary Judgment", "Verdict","Other")))
-  
-train_joined <- left_join(train_dockets, train_total_motions)
+train_dockets$outcome<-factor(train_dockets$outcome)
+levels(train_dockets$outcome)[5]<-"Other"
+train_dockets$outcome<-factor(train_dockets$outcome, levels=c("Dismissed", "Summary Judgment", "Settled", "Other"))
+train_dockets[train_dockets==-8]<-NA
+
+train_other_motions[train_other_motions==-8]<-NA
+train_other_motions$motion_type<-factor(train_other_motions$motion_type)
+levels(train_other_motions$motion_type)[2:4]<-"Other Non-Terminating Motions"
+levels(train_other_motions$motion_type)[4:5]<-"Other Non-Terminating Motions"
+
+train_terminating_motions[train_terminating_motions==-8]<-NA
+levels(train_terminating_motions$motion_type)[1:2]<-"Other Terminating Motions"
+levels(train_terminating_motions$motion_type)[3]<-"Other Terminating Motions"
+levels(train_terminating_motions$motion_type)[4:5]<-"Other Terminating Motions"
+
+test_terminating_motions[test_terminating_motions==-8]<-NA
+test_terminating_motions$motion_type<-factor(test_terminating_motions$motion_type)
+levels(test_terminating_motions$motion_type)[1:2]<-"Other Terminating Motions"
+levels(test_terminating_motions$motion_type)[3]<-"Other Terminating Motions"
+levels(test_terminating_motions$motion_type)[4:5]<-"Other Terminating Motions"
+
+test_other_motions[test_other_motions==-8]<-NA
+test_other_motions$motion_type<-factor(test_other_motions$motion_type)
+levels(test_other_motions$motion_type)[2:4]<-"Other Non-Terminating Motions"
+levels(test_other_motions$motion_type)[4:5]<-"Other Non-Terminating Motions"
+
+# train_joined <-
+#   train_terminating_motions %>% 
+#   group_by(mudac_id, motion_type) %>% 
+#   summarise(total_motion=n()) %>% 
+#   pivot_wider(values_from=total_motion,
+#               names_from=motion_type) %>% left_join(train_dockets, by="mudac_id")
 ```
 
 ## Including Plots
@@ -42,23 +73,76 @@ train_joined <- left_join(train_dockets, train_total_motions)
 You can also embed plots, for example:
 
 ```{r Plots}
-train_joined %>% 
-  ggplot(aes(x=outcome)) +
-  geom_bar(aes(fill=outcome))
+ train_terminating_motions %>% 
+  group_by(mudac_id, motion_type) %>% select(mudac_id, motion_type) %>% 
+  summarise(total_motion=n()) %>% filter(total_motion>=1) %>%
+  left_join(train_dockets, by="mudac_id") %>% 
+  ggplot(aes(x=outcome))+
+    geom_bar(aes(fill=outcome))+
+    facet_wrap(~motion_type)+
+    coord_flip()+labs(title="Outcomes Related to Various Terminating Motions Filed")
 
-train_joined %>% 
-  ggplot(aes(x=district)) +
-  geom_bar(aes(fill=outcome)) 
+train_other_motions %>% 
+  group_by(mudac_id, motion_type) %>% 
+  select(mudac_id, motion_type) %>% 
+  summarise(total_motion=n()) %>% 
+  filter(total_motion>=1) %>% left_join(train_dockets, by = "mudac_id") %>% 
+  select(mudac_id, motion_type, outcome) %>% 
+  ggplot(aes(x=outcome))+
+  geom_bar(aes(fill=outcome))+
+  facet_wrap(~motion_type)+
+  coord_flip()+labs(title="Outcomes Related to Various Non-Terminating Motions Filed")
 
-train_joined %>% 
-  filter(`Motion to Dismiss` >= 1) %>% 
-  ggplot(aes(x=outcome)) +
-  geom_bar(aes(fill=outcome)) 
+train_terminating_motions %>% 
+  group_by(mudac_id, motion_type) %>% 
+  select(mudac_id, motion_type) %>% 
+  summarise(total_motion=n()) %>% 
+  left_join(train_dockets, by = "mudac_id") %>% 
+  filter(motion_type=="Motion to Dismiss", total_motion<=20) %>% 
+  mutate(dismiss = as.logical(outcome == "Dismissed")) %>% 
+  select(total_motion, dismiss) %>% 
+  group_by(total_motion) %>% 
+  summarise(total = n(),
+            total_D = sum(dismiss, na.rm=TRUE)) %>% 
+  mutate(prop = total_D / total) %>% 
+  ggplot(aes(x=total_motion)) +
+  geom_bar(aes(weight=prop, color=total_motion)) +
+  labs(title = "Proportion of Successful Motions to Dismiss", 
+       x = "Amount of Motions to Dismiss", 
+       y = "Proportion of Successful Motions to Dismiss")
 
-train_joined %>% 
-  filter(`Motion for Summary Judgment` >= 1) %>% 
-  ggplot(aes(x=outcome)) +
-  geom_bar(aes(fill=outcome)) 
+train_terminating_motions %>% 
+  group_by(mudac_id, motion_type) %>% 
+  select(mudac_id, motion_type) %>% 
+  summarise(total_motion=n()) %>% 
+  left_join(train_dockets, by = "mudac_id") %>% 
+  filter(motion_type=="Motion to Dismiss", total_motion<=20) %>% 
+  mutate(dismiss = as.logical(outcome == "Dismissed")) %>% 
+  select(total_motion, dismiss) %>% 
+  group_by(total_motion) %>% 
+  ggplot(aes(fill=dismiss, x=total_motion)) +
+  geom_bar(aes(position = "fill", stat = "identity")) +
+  labs(title = "Proportion of Successful Motions to Dismiss", 
+       x = "Amount of Motions to Dismiss", 
+       y = "Proportion of Successful Motions to Dismiss")
+
+train_terminating_motions %>% 
+  group_by(mudac_id, motion_type) %>% 
+  select(mudac_id, motion_type) %>% 
+  summarise(total_motion=n()) %>% 
+  left_join(train_dockets, by = "mudac_id") %>% 
+  filter(motion_type=="Motion for Summary Judgment", total_motion<=25) %>% 
+  mutate(SJ = as.logical(outcome == "Summary Judgment")) %>% 
+  select(total_motion, SJ) %>% 
+  group_by(total_motion) %>% 
+  summarise(total = n(),
+            total_SJ = sum(SJ, na.rm=TRUE)) %>% 
+  mutate(prop = total_SJ / total) %>% 
+  ggplot(aes(x=total_motion)) +
+  geom_bar(aes(weight=prop)) +
+  labs(title = "Proportion of Successful Motions for Summary Judgment",
+       x = "Amount of Motions for Summary Judgment", 
+       y = "Proportion of Successful Motions for Summary Judgment")
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
