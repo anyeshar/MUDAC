@@ -12,7 +12,6 @@ levels(train_dockets$outcome)[5]<-"Other"
 train_dockets$outcome<-factor(train_dockets$outcome, levels=c("Dismissed", "Summary Judgment", "Settled", "Other"))
 train_dockets[train_dockets==-8]<-NA
 
-
 train_other_motions<-read_csv("~/Documents/MUDAC/Data/train_other_motions.csv")
 train_other_motions[train_other_motions==-8]<-NA
 train_other_motions$motion_type<-factor(train_other_motions$motion_type)
@@ -32,11 +31,9 @@ levels(test_terminating_motions$motion_type)[1:2]<-"Other Terminating Motions"
 levels(test_terminating_motions$motion_type)[3]<-"Other Terminating Motions"
 levels(test_terminating_motions$motion_type)[4:5]<-"Other Terminating Motions"
 
-test_dockets<-read_csv("~/Documents/MUDAC/Data/train_dockets.csv")
-test_dockets$outcome<-factor(test_dockets$outcome)
-levels(test_dockets$outcome)[5]<-"Other"
-test_dockets$outcome<-factor(test_dockets$outcome, levels=c("Dismissed", "Summary Judgment", "Settled", "Other"))
+test_dockets<-read_csv("~/Documents/MUDAC/Data/test_dockets.csv")
 test_dockets[test_dockets==-8]<-NA
+str(test_dockets)
 
 test_other_motions<-read_csv("~/Documents/MUDAC/Data/test_other_motions.csv")
 test_other_motions[test_other_motions==-8]<-NA
@@ -124,12 +121,64 @@ train_other_motions %>%
   ggplot(aes(x=outcome))+
   geom_bar(aes(fill=outcome))+
   facet_wrap(~motion_type)+
-  coord_flip()+labs(title="Outcomes Related to Various Terminating Motions Filed")
+  coord_flip()+labs(title="Outcomes Related to Various Non-Terminating Motions Filed")
+
+summary_judgment<-test_terminating_motions %>% 
+  group_by(mudac_id, motion_type) %>% select(mudac_id, motion_type) %>% 
+  summarise(total_motion=n()) %>% filter(total_motion>=1) %>%
+  left_join(train_dockets, by="mudac_id") %>% select(mudac_id, motion_type, total_motion, outcome) %>% 
+  group_by(motion_type, outcome) %>% filter(motion_type=="Motion for Summary Judgment") %>% summarise(outcome_total=n())
+# chi square goodness of fit
+##Conduct goodness of fit test
+#Set the probability values from the model in the same 
+#color order as the data
+modelp<- c(0.25, 0.25, 0.25, 0.25)
+summary_judgment.goodtest<- chisq.test(summary_judgment[-5, 3], p = modelp)
+summary_judgment.goodtest
+#Get expected values for each category
+summary_judgment.goodtest$expected
+#Contribution from each category to test statistic
+(summary_judgment.goodtest$residuals)^2 
+
+dismiss<-test_terminating_motions %>% 
+  group_by(mudac_id, motion_type) %>% select(mudac_id, motion_type) %>% 
+  summarise(total_motion=n()) %>% filter(total_motion>=1) %>%
+  left_join(train_dockets, by="mudac_id") %>% select(mudac_id, motion_type, total_motion, outcome) %>% 
+  group_by(motion_type, outcome) %>% filter(motion_type=="Motion to Dismiss") %>% summarise(outcome_total=n())
+# chi square goodness of fit
+##Conduct goodness of fit test
+#Set the probability values from the model in the same 
+#color order as the data
+modelp<- c(0.25, 0.25, 0.25, 0.25)
+dismiss.goodtest<- chisq.test(dismiss[-5, 3], p = modelp)
+dismiss.goodtest
+#Get expected values for each category
+dismiss.goodtest$expected
+#Contribution from each category to test statistic
+(dismiss.goodtest$residuals)^2
+
+other_terminating_motions<-test_terminating_motions %>% 
+  group_by(mudac_id, motion_type) %>% select(mudac_id, motion_type) %>% 
+  summarise(total_motion=n()) %>% filter(total_motion>=1) %>%
+  left_join(train_dockets, by="mudac_id") %>% select(mudac_id, motion_type, total_motion, outcome) %>% 
+  group_by(motion_type, outcome) %>% filter(motion_type=="Other Terminating Motions") %>% summarise(outcome_total=n())
+# chi square goodness of fit
+##Conduct goodness of fit test
+#Set the probability values from the model in the same 
+#color order as the data
+modelp<- c(0.25, 0.25, 0.25, 0.25)
+other_terminating_motions.goodtest<- chisq.test(other_terminating_motions[-5, 3], p = modelp)
+other_terminating_motions.goodtest
+#Get expected values for each category
+other_terminating_motions.goodtest$expected
+#Contribution from each category to test statistic
+(other_terminating_motions.goodtest$residuals)^2
 
 
 
 
 
+############################
 # train_other_motions %>% 
 #   group_by(mudac_id, motion_type) %>% 
 #   summarise(total_motion = n()) %>% 
@@ -197,3 +246,5 @@ train_other_motions %>%
 # # 4 Verdict           2563
 # # 5 Other             1725
 # # 6 NA                 273
+
+
