@@ -1,0 +1,1389 @@
+---
+title: "STAT 480 Lecture Notes"
+author: "Kailee Ervin"
+date: "1/21/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(tidyverse)
+library(classdata)
+library(dplyr)
+library(nycflights13)
+devtools::install_github("haleyjeppson/classdata", force=TRUE)
+library(Lahman)
+```
+# Links
+r markdown cheat sheet: https://rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf
+r reference card: https://cran.r-project.org/doc/contrib/Short-refcard.pdf
+ggpplot2 reference: https://ggplot2.tidyverse.org/reference/
+ggplot2 rstudio cheat sheet: https://rstudio.com/wp-content/uploads/2015/03/ggplot2-cheatsheet.pdf
+dplyr: https://dplyr.tidyverse.org
+
+# R Intro
+
+1. Assignments: x=2/3
+2. Functions: sqrt(x)
+3. vectors: y = (1,2,3,5)^t
+4. indices: y1
+5. mathematical operators: sum of yi from 1 to 4
+6. 2y
+
+```{r}
+x <-2/3
+sqrt(x)
+y<-c(1,2,3,5)
+y[1]  #y[row, column] if matrix
+sum(y)
+2*y
+```
+
+## Your Turn
+
+```{r YourTurn}
+x<-c(4,1,3,9)
+y<-c(1,2,3,5)
+d<-sqrt(sum((x-y)^2))
+d
+```
+## Getting help with R
+
+?command
+help(command)
+help.search(command)
+
+gettting out
+q() quits out of the console
+
+## Loading class data
+
+```{r LoadClassData}
+devtools::install_github("haleyjeppson/classdata")
+## Skipping install of 'classdata' from a github remote, the SHA1 (f07d5f48) has not changed since last install.
+##   Use `force = TRUE` to force installation
+library(classdata) #make data available everytime you start R
+```
+
+## Your Turn
+
+```{r YourTurn}
+fbi #Shows dataset
+?fbi #R help on dataset
+```
+
+## Inspecting Objects
+
+For object x, commands:
+x
+head(x)
+summary(x)
+str(x)
+dim(x)
+
+## Your Turn
+```{r}
+fbi
+head(fbi)
+summary(fbi)
+str(fbi)
+dplyr::glimpse(fbi) #similar to str but need package to run
+dim(fbi) #give dimensions of dataset, 23256 rows, 7 variables (columns)
+```
+
+## Extracting parts of objects
+rows and columns are vectors of indices
+
+**x$variable**
+```{r showColumnData}
+fbi$State #shows all data for State
+```
+**x[,"variable"]**
+```{r showColumnData}
+fbi[,"State"] #shows all data for State (same output as previous)
+```
+**x[rows,columns]**
+```{r showRowColumn}
+fbi[1,1] #shows data in first row and first column
+```
+**x[1:5, 2:3]**
+```{r showRowsColumns}
+fbi[1:5, 2:3] #shows rows 1-5 and columns 2 and 3 (Abb and Year)
+```
+**x[c(1,5,6), c("State", "Year")]**
+```{r showRowsColumns}
+fbi[c(1,5,6), c("State", "Year")] #shows rows 1, 5, and 6 for State and Year
+```
+**x$variable[rows]**
+```{r showRows}
+fbi$State[1:5] #shows first 5 rows of State
+```
+
+## Statistical Summary
+5-point summary
+1. mean
+2. median
+3. min
+4. max
+5. quantiles
+
+other summary statistics
+range, sd, var
+
+summaries of 2 variables
+cor, cov
+
+```{r}
+fbi[1:10,] # or head[fbi, 10]
+mean(fbi$Count, na.rm=TRUE)
+sd(fbi$Count, na.rm=TRUE)
+```
+
+# First Graphics
+
+```{r}
+library(ggplot2)
+library(classdata)
+str(fbiwide)
+```
+
+## A layered grammar of graphics
+
+A graphical representation (plot) consists of:
+
+1. **default data and mappings (aes)**: data variables are mapped to visual properties of the graphical elements
+2. **one or more layers:**
+  + geometric element (geom, such as point, line, rectangle, text, ...),
+  + statistical transformation (stat, such as identity, counts, bins, ...),
+  + position adjustment,
+  + (optional) one dataset and set of aesthetic mappings
+3. **scales**: map values in the data space to values in an aesthetic space
+4. **coordinate system (coord)**: normally Cartesian, but could use polar coordinates for pie charts or different mapping coordinates
+5. **facetting:** for small multiples (subsets) and their arrangement
+6. **theme:** fine-tune display items, such as font and its size, color of background, margins, ...
+
+## Scatterplots in ggplot2
+
+* aes allows us to specify mappings
+* scatterplots need a mapping for x and a mapping for y
+
+```{r ggplot2Example}
+ggplot(data = fbiwide, aes(x = Burglary, y = Murder)) +
+  geom_point()
+ggplot(data = fbiwide, aes(x = log(Burglary), y = log(Murder))) +
+  geom_point()
+ggplot(data = fbiwide, aes(x = log(Burglary), y = log(Motor.vehicle.theft))) +
+  geom_point()
+```
+
+## Interpreting scatterplots
+
+* **Big patterns**
++ **Form**: Is the plot linear? Is the plot curved? Is there a distinct pattern in the plot? Are there multiple groups?
++ **Direction**: Is the pattern increasing? Is the plot decreasing? *Positively*: Above (below) average in one variable tends to be associated with above (below) average in another variable.*Negatively*: Opposite pattern.
++ **Strength**: Does the plot follow the form very closely? Or is there a lot of variation?
+* **Small patterns**
+* **Deviations from the pattern**
++ **Outliers**
+
+## Aesthetics
+size, colour, and shape
+specify color for geom_point() but fill for geom_bar()
+
+```{r}
+ggplot(aes(x = log(Burglary), y = log(Motor.vehicle.theft),
+           colour=State), data=fbiwide) + geom_point()
+ggplot(aes(x = log(Burglary), y = log(Motor.vehicle.theft),
+           colour=Year), data=fbiwide) + geom_point() #Because year is continuous, color scale is also continuous
+ggplot(aes(x = log(Burglary), y = log(Motor.vehicle.theft),
+           size=Population), data=fbiwide) + geom_point()
+ggplot(data = fbiwide, aes(x = Burglary, y = Murder)) +
+    geom_point(aes(color = State))
+ggplot(data = fbiwide, aes(x = Burglary, y = Murder)) +
+    geom_point(color = "orange", alpha = .4)
+ggplot(data = fbiwide, aes(x = Burglary, y = Murder)) +
+    geom_point(color = "orange", alpha = .4) +
+    scale_x_log10() + 
+    scale_y_log10()
+```
+
+## Facetting
+Making a bunch of small, subsetted plots
+Can facet to display plots for different subsets: facet_wrap, facet_grid
+
+* **facet_grid** has formula specification: **rows ~ cols**
+* **facet_wrap** has specification **~ variables**
+  + choose one variable and then make a new row when decides row is full
+* multiple variables (in either specification) are included in the form of a sum
+  + i.e. **rowvar1 + rowvar2 ~ colvar1+ colvar2**
+* no variable (in facet_grid) is written as .
+  + i.e. rowvar ~ . are plots in a single column.
+
+```{r}
+ggplot(data=fbiwide, aes(x = Year, y = Murder)) + geom_point() + facet_wrap(~State)
+```
+
+```{r yourTurn}
+ggplot(data=fbiwide, aes(x = Year, y = Motor.vehicle.theft)) + geom_point() + facet_wrap(~State)
+ggplot(data=fbiwide, aes(x = Year, y = log(Motor.vehicle.theft))) + geom_point() + facet_wrap(~State)
+ggplot(data=fbiwide, aes(x = Year, y = Motor.vehicle.theft)) + geom_point() + facet_wrap(~State, scales="free_y")
+```
+
+## Boxplots
+
+* are used for group comparisons and outlier identifications
+* usually only make sense in form of side-by-side boxplots.
+* geom_boxplot in ggplot2 needs x and y variable
+  + y is measurement,
+  + x is categorical
+
+```{r}
+ggplot(data = fbi, aes(x = Type, y = log10(Count))) +
+    geom_boxplot() + 
+    coord_flip()
+```
+  
+```{r yourTurn}
+ggplot(data=fbiwide, aes(x=State, y=Robbery)) +geom_boxplot()+coord_flip()
+ggplot(data=fbiwide, aes(x=State, y=log(Robbery))) +geom_boxplot()+coord_flip()
+ggplot(data=fbiwide, aes(x=State, y=Robbery)) +geom_boxplot()+coord_flip() + scale_y_log10()
+ggplot(data=fbiwide, aes(x=State, y=Robbery/Year, size=Population)) +geom_boxplot()+coord_flip()
+?geom_boxplot
+```
+
+Pros
+* Symmetry vs Skewness
+* Outliers
+* Quick Summary
+* Comparisons across multiple Treatments (side by side boxplots)
+
+Cons
+* Boxplots hide multiple modes and gaps in the data
+
+# Univariate Plots
+
+## Histograms
+creating counts by binning the continuous variable
+```{r Histogram}
+ggplot(fbiwide, aes(x = Motor.vehicle.theft)) + 
+  geom_histogram(binwidth = 5000) +
+  ggtitle("binwidth = 5000")
+ggplot(fbiwide, aes(x = Motor.vehicle.theft)) + 
+  geom_histogram(binwidth=1000) +
+  ggtitle("binwidth = 1000")
+```
+
+## Barchart
+creating counts for the categories
+```{r Barchart}
+ggplot(fbi, aes(x = Type)) + 
+  geom_bar(aes(weight= Count)) +
+  coord_flip()
+```
+
+What do we look for?
+* Symmetry/Skewness
+* Modes, Groups (big pattern: where is the bulk of the data?)
+* Gaps & Outliers (deviation from the big pattern: where are the other points?)
+* For the histogram, always choose the binwidth consciously
+  + geom_histogram has default 30 bins
+
+In a barchart, choose the order of the categories consciously
+
+```{r}
+ggplot(fbi, aes(x=Violent.crime)) + geom_bar()
+
+ggplot(fbi, aes(x=Violent.crime, weight=Count)) + geom_bar()
+ggplot(fbi, aes(x=Violent.crime)) + geom_bar(aes(weight=Count))
+
+ggplot(fbi, aes(x=Violent.crime)) + geom_bar(aes(weight=Count))+facet_wrap(~Type)
+
+
+ggplot(fbi, aes(x=Violent.crime)) + geom_bar(aes(weight=Count, fill=Type))
+ggplot(fbi, aes(x=Violent.crime, weight=Count, fill=Type)) + geom_bar(color="black")
+
+ggplot(fbi, aes(x= Count)) + geom_histogram(binwidth=100000)
+ggplot(data=fbi) + geom_histogram(aes(x=Count))
+ggplot(data=fbi) + geom_histogram(aes(x=Count)) + facet_wrap(~Type)
+?fbi
+```
+
+# Logical Variables and Filters
+
+## Logical vectors
+
+* Vectors consisting of values TRUE and FALSE
+* Very important!
+* Usually created with a logical comparison
+* <, >, ==, !=, <=, >=
+  + use one =, telling it, defining it
+  + two ==, asking it if statment is true or false
+  + ! negates what is right after
+* x %in% c(1, 4, 3, 7)
+  + asking if "in" another vector
+* subset or dplyr::filter
+
+## Logical Expressions
+* **&** and **|** are the logical and and or
+* **!** is the logical negation
+* use parentheses () when linking expressions to avoid mis-interpretation
+
+```{r}
+a <- c(1,15,3,20,5,8,9,10,1,3)
+a<20
+(a^2>=100) | (a^2<10)
+(a==1) | (a==3)
+a %in% c(1,3)
+a == c(1,3) #not correct
+a %% 2 ==0
+```
+
+## filter {dplyr}
+
+* filter is a command of package dplyr
+* NOTE: the package dplyr is loaded by the package tidyverse
+* filter(data, ...) finds subset of data where conditions specified by logical expression in ... are true,
+* e.g. filter(fbi, Year == 2014) filter(fbi, Type == "Larceny.Theft", State %in% c("Iowa", "Minnesota"))
+* multiple expressions are combined by a logical and &
+* Note that the command **subset** works very similarly.
+* Caution! there is another function called filter in the stats package.
+* Use **::** to make sure you use the right one: dplyr::filter
+
+```{r}
+library(dplyr)
+filter(fbi, Year == 2014) 
+filter(fbi, Type == "Larceny.Theft", State %in% c("Iowa", "Minnesota"))
+```
+
+```{r FilterYourTurn}
+#Get a subset of all crimes in Iowa. Plot incidences/rates for one type of crime over time.
+iowaCrimes<-filter(fbi, State=="Iowa")
+iowa_murders<-filter(iowaCrimes, Type == "Murder.and.nonnegligent.Manslaughter")
+head(iowa_murders)
+iowamurders<-filter(fbi, State=="Iowa", Type=="Murder.and.nonnegligent.Manslaughter")
+head(iowamurders)
+ggplot(data=iowa_murders, aes(x=Year, y=Count, color=Type)) + geom_point()
+
+#Get a subset of all crimes in 2009. Plot the number or rate for one type of crime by state.
+crime_2009 <- filter(fbi, Year==2009) #since year is integer, do not need quotations
+crimes09_assaults<-filter(crime_2009, Type =="Aggravated.assault")
+ggplot(data=crimes09_assaults, aes(x=State, y=Count)) + geom_point() + coord_flip()
+
+#Get a subset of the data that includes number of homicides for the last five years. Find the rate of homicides, extract all states that have a rate of greater than 90% of the rates across all states, and plot (Hint: ?quantile).
+max(fbi$Year)
+summary(fbi$Type)
+fbi_subset<-filter(fbi, Type=="Murder.and.nonnegligent.Manslaughter", Year>=2012)
+fbi_subset$rate<-fbi_subset$Count/fbi_subset$Population
+fivenum(fbi_subset$rate)
+quantile(fbi_subset$rate, 0.9)
+top90<-filter(fbi_subset, rate> quantile(fbi_subset$rate, 0.9))
+ggplot(data=top90, aes(x=State, y=rate)) + geom_point() + coord_flip()
+```
+## Useful Commands
+Number of records in a data set:
+**nrow(dataset)**
+
+Quantiles:
+**quantile(variable, probs=0.001, na.rm=T)**
+Find all indices for which the expression is TRUE:
+**which(logical variable)**
+
+Retrieve index of maximum/minimum value:
+**which.max(variable)**
+**which.min(variable)**
+
+```{r UsefulCommandsYourTurn}
+#Use the fbi data object to answer the following questions:
+#In which year did California have the greatest number of burglaries reported?
+cali_burg<-filter(fbi, State=="California", Type=="Burglary")
+which.max(cali_burg$Count)
+cali_burg
+cali_burg[20,]
+
+#for any of the violent crimes, which state had the highest rate (and for which crime) in 2014? in 1961?
+vio_crime2014<-filter(fbi, Violent.crime=="TRUE", Year==2014)
+vio_crime2014$rate<-vio_crime2014$Count/vio_crime2014$Population
+which.max(vio_crime2014$rate)
+vio_crime2014[217,]
+
+vio_crime1961<-filter(fbi, Violent.crime=="TRUE", Year==1961)
+vio_crime1961$rate<-vio_crime1961$Count/vio_crime1961$Population
+which.max(vio_crime1961$rate)
+vio_crime1961[209,]
+#Use the fbiwide data object to answer the following question:
+#in 2011, how many states had fewer vehicle thefts than robberies? (which states are those?)
+fbiwide_subset<-filter(fbiwide, Motor.vehicle.theft<Robbery, Year==2011)
+unique(fbiwide_subset$State)
+
+```
+
+
+## Updating Elements in a Vector
+
+```{r}
+a <- 1:4
+a
+a[2:3] <- 0
+a
+replace(a, a == 0, -1) #replace all values in a where 0 with -1
+
+# introduces new variable in the data set fbiwide
+fbiwide$murder_rate <- fbiwide$Murder/fbiwide$Population*100000
+names(fbiwide) #if variable exists beforehand, then it is being modified or overwritten
+```
+
+```{r}
+#The gapminder data we originally worked with is available here.
+#read.csv helps you read the gapminder from the given link. Store the result in an object.
+
+gapminder<-read.csv("https://stat480-at-isu.github.io/materials-2020/01_collaborative-environment/data/gapminder-5060.csv")
+
+#What format does the object have?
+str(gapminder)
+
+#Replace the problematic value in life expectancy for Canada in 1957 by 69.96.
+gapminder_canada<-filter(gapminder,year==1957, country=="Canada")
+gapminder_canada
+replace(gapminder_canada, gapminder_canada$lifeExp==999999,69.96)
+
+gapminder[gapminder$year==1957 & gapminder$country=="Canada",]
+
+```
+
+# Data types in R
+* logical: boolean values
+  + ex. TRUE and FALSE
+* double: floating point numerical values (default numerical type)
+  + ex. 1.335 and 7
+* integer: integer numerical values (indicated with an L)
+  + ex. 7L and 1:3
+* character: character string
++ ex. "hello"
+* lists: 1d objects that can contain any combination of R objects
+
+# Factors
+* A special type of variable to indicate categories
+* Includes both the labels and their order (i.e. numbers)
+* By default, text variables are stored in factors during input
+* Numeric categorical variables have to be converted to factors manually
+* *factor()* creates a new factor with specified labels
+
+```{r}
+#Load a sample of data from the General Social Survey with the following code: data(gss_cat, package = "forcats")
+data(gss_cat, package = "forcats")
+
+#Inspect the gss_cat object.
+str(gss_cat)
+
+#How many variables are there?
+#9 variables
+
+#Which type does each of the variables have?
+# int, factor
+#Make a summary of year.
+summary(gss_cat$year)
+#Make year a factor variable: gss_cat$year <- factor(gss_cat$year)
+gss_cat$year <- factor(gss_cat$year)
+#Compare summary of year to the previous result.
+summary(gss_cat$year) #shows the number of observations for that level
+
+#Are there other variables that should be factors (or vice versa)?
+```
+
+## Check the Data Type
+Recall the data types in R:
+* logical, double, integer, character, lists, & more
+Checking for types:
+* str or typeof provide info on type
+* is.XXX (with XXX either factor, int, numeric, logical, character, ... ) checks for specific type
+R is a dynamically typed language
+It will happily convert between the various types without complaint
+as.XXX casts to specific type
+as.numeric applied to a factor retrieves order of labels, not labels, even if those could be interpreted as numbers.
+To get the labels of a factor as numbers, first cast to character and then to a number.
+Use levels(x) to check the levels of factor variable x in their current order
+Use summary(x) to see order of the levels with counts for each level
+dplyr::count() will also work but more on this next week...
+```{r}
+typeof(TRUE)
+typeof("hello")
+is.integer(1:3)
+c(1, "Hello")
+c(FALSE, 3L)
+c(1.2, 3L)
+as.character(c(1, 9, 4.3, FALSE))
+as.numeric(c(TRUE, FALSE, FALSE))
+fruits <- factor(c("apple", "banana", "orange"))
+as.numeric(fruits)
+levels(gss_cat$race)
+summary(gss_cat$race)
+gss_cat %>% count(race)
+```
+
+## Factors in barchart
+A barchart can also provide us with a quick summary provided the 
+levels have values.
+```{r}
+ggplot(gss_cat, aes(race)) +
+  geom_bar()
+ggplot(gss_cat, aes(race)) +
+  geom_bar() +
+  scale_x_discrete(drop = FALSE)
+```
+
+## Factors on boxplots
+boxplots in ggplot2 only work properly if the x variable is a character variable or a factor:
+```{r}
+twoyear <- dplyr::filter(gss_cat, year %in% c(2000, 2014))
+ggplot(data = twoyear, 
+       aes(x = year, y = tvhours)) + 
+  geom_boxplot()
+ggplot(data = twoyear, 
+       aes(x = factor(year), y = tvhours)) + 
+  geom_boxplot()
+```
+
+## Changing the order
+Factor variables often have to be re-ordered for ease of comparisons
+
+We can manually specify the order of the levels by explicitly 
+listing them, see help(factor)
+
+We can make the order of the levels in one variable dependent on the summary statistic of another variable
+
+the forcats package (part of the tidyverse ⚠️ but not automatically loaded!) contains many functions to make this easier and less error-prone
+
+## Reordering the factor level
+* manual way: tedius and prone to errors
+* by frequency: Use the function fct_infreq() from the forcats package to order the categorical variable relig by its frequency. 
+* using another variable:
+  + Base R option: reorder(factor, numbers, function)
+  + reorder levels in factor by values in numbers. Use the argument function to summarise (average is used by default).
+  + Option using the forcats package: fct_reorder(factor, numbers, function)
+
+missing values in numbers? make sure to use parameter na.rm=TRUE!
+
+```{r}
+# manual
+levels(gss_cat$relig)
+levels(factor(gss_cat$relig, levels=c("Moslem/islam", "Hinduism", "Buddhism", "Other eastern", "Jewish", "Christian", "Orthodox-christian", "Catholic", "Protestant", "Inter-nondenominational", "Native american", "Other", "None", "No answer", "Don't know",  "Not applicable")))
+
+# by frequency
+library(forcats)
+ggplot(gss_cat, aes(x = fct_infreq(relig))) + 
+  geom_bar() + 
+  coord_flip()
+
+# using another variable
+levels(reorder(gss_cat$relig, gss_cat$tvhours, na.rm=TRUE))
+relig_summary <- gss_cat %>% group_by(relig) %>% summarise(age = mean(age, na.rm = TRUE), tvhours = mean(tvhours, na.rm = TRUE), n = n())
+# before
+ggplot(relig_summary, aes(x = tvhours, 
+      y = relig)) + 
+  geom_point()
+# after
+ggplot(relig_summary, aes(x = tvhours, 
+    y = fct_reorder(relig, tvhours))) + 
+  geom_point()
+```
+
+```{r}
+#Introduce a rate of the number of reported offenses by population into the fbi data. You could use the Ames standard to make values comparable to a city of the size of Ames (population ~70,000).
+fbi$rate<-fbi$Count/fbi$Population
+summary(fbi$Type)
+
+#Plot boxplots of crime rates by different types of crime. How can you make axis text legible?
+ggplot(data = fbi, 
+       aes(x = factor(Type), y = rate)) + 
+  geom_boxplot() + coord_flip()
+levels(reorder(fbi$Type, fbi$rate, median, na.rm=TRUE))
+ggplot(data = fbi, 
+       aes(x = fct_reorder(Type, rate, median, na.rm=TRUE), y = rate)) + 
+  geom_boxplot() + coord_flip()
+
+#Reorder the boxplots of crime rates, such that the boxplots are ordered by their medians.
+fbi_burglary<-filter(fbi, Type=="Burglary")
+ggplot(data = fbi_burglary, 
+       aes(x = State, y = rate)) + 
+  geom_boxplot() + coord_flip()
+
+#For one type of crime (subset!) plot boxplots of rates by state, reorder boxplots by median crime rates
+ggplot(data = fbi_burglary, 
+       aes(x = fct_reorder(State, rate, median, na.rm=TRUE), y = rate)) + 
+  geom_boxplot() + coord_flip()
+```
+
+```{r}
+#Draw a barchart of Gender. Interpret.
+ggplot(titanic, aes(x=Sex))+geom_bar()
+
+#Map survival to fill color in the barchart of Gender. Interpret.
+ggplot(titanic, aes(x=Sex))+geom_bar(aes(fill=Survived))
+
+#In the previous barchart change the position parameter to "fill". Interpret.
+ggplot(titanic, aes(x=Sex))+geom_bar(aes(fill=Survived), position="fill")
+
+#Read up on the position parameter in ?geom_bar. Try out other options for position.
+?geom_bar
+
+
+```
+
+
+```{r}
+ucb_admit <- read.csv("https://raw.githubusercontent.com/Stat480-at-ISU/materials-2020/master/02_r-intro/data/ucb-admit.csv")
+#Draw a barchart of Gender. Interpret.
+ggplot(ucb_admit, aes(x=Gender))+geom_bar()
+
+#Map Admit to fill color in the barchart of Gender. Interpret.
+ggplot(ucb_admit, aes(x=Gender))+geom_bar(aes(fill=Admit))
+#In the previous barchart change the position parameter to "fill". Interpret.
+ggplot(ucb_admit, aes(x=Gender))+geom_bar(aes(fill=Admit),position="fill")
+#Try out other options of looking at the data. Is there evidence of a sex bias in graduate admissions?
+
+ggplot(ucb_admit, aes(x=Gender))+geom_bar(aes(fill=Admit),position="fill")+facet_wrap(~Dept)
+```
+
+```{r}
+# Using the pipe, create a subset of the data for one type of crime in 
+# Iowa and then create a line chart (use geom_line()) that shows 
+# counts over time.
+
+fbi %>% 
+  filter(Type=="Aggravated.assault", State=="Iowa") %>% 
+  ggplot(aes(x=Year, y=Count))+geom_line()
+```
+
+```{r}
+fbi %>% 
+  dplyr::filter(Type == "Burglary", Year == 2014) %>% 
+  head()
+
+fbi %>% arrange(desc(State), Year) %>% 
+  head()
+```
+
+```{r frenchfries}
+library(reshape2)
+str(french_fries)
+levels(french_fries$treatment)
+
+# Do ratings of potato-y show a difference between the different oils over time?
+# Draw a plot of the average potato-y rating by time, color by treatment.
+
+french_fries %>% 
+  group_by(treatment, time) %>% 
+  summarise(m.potato=mean(potato, na.rm=TRUE)) %>% 
+  ggplot()+geom_point(aes(x=time, y=m.potato, color=treatment))+ylab("Average")
+
+# How does this plot look like for the rancid rating?
+french_fries %>% 
+  group_by(treatment, time) %>% 
+  summarise(m.rancid=mean(rancid, na.rm=TRUE)) %>% 
+   ggplot()+geom_point(aes(x=time, y=m.rancid, color=treatment))+ylab("Average")
+
+# How much consistency do we see between ratings? For buttery and rancid ratings find the mean and the absolute difference between the two replicates (for each subject, each treatment and each time point). Use dplyr functions to find this summary dataset.
+french_fries %>% 
+  group_by(subject, treatment, time) %>% 
+  summarise(m.butter=mean(buttery, na.rm=TRUE),
+            m.rancid=mean(rancid, na.rm=TRUE),
+            diff=abs(m.butter-m.rancid))
+
+```
+
+# DPLYR
+Functions are thought of as verbs that manipulate data frames
+* **filter()**: pick rows by matching some criteria
+  - keywords: exclude, only consider, subset, ...
+* **slice()**: pick rows using index(es)
+* **select()**: select columns of a data frame by name
+* **pull()**: grab a column as a vector
+* **arrange()**: reorder the rows of a data frame
+* **mutate()**: add new or change existing columns of the data frame (as functions of existing columns)
+  - keywords: introduce, replace, reorder, ...
+* **summarise()**: collapse many values down into a summary of the data frame
+  - keywords: calculate, average, summary, ...
+* **group_by**
+  - keywords: for each of,
+
+These can all be used with group_by() which changes the scope of function from entire dataset to group-by-group.
+
+Rules for functions:
+* First argument is always a data frame; e.g. function(data, arg2, ...)
+* Subsequent arguments say what to do with that data frame
+* Always return a data frame
+* Don't modify in place
+
+The common structure makes it easy to chain together multiple simple steps using the pipe function (%>%)
+* e.g: function(data, ...) becomes data %>% function(...)
+
+Potential Traps
+* using the $ notation in tidyverse can lead to strange behavior and error messages
+* don't forget to save statements back into the dataset (mutate(), arrange()) or new data objects (summarise(), filter())
+* when using the pipe %>%: what is output from lhs, first parameter on rhs?
+
+```{r dplyr_examples}
+library(dplyr)
+library(nycflights13)
+
+########filter()
+
+#filter to select a subset of rows: 
+  flights %>% filter(month == 1)
+
+#filter for many conditions at once: 
+  flights %>% filter(month == 1, day == 1)
+
+########slice()
+
+#slice for certain row numbers: 
+  flights %>% slice(1:6)
+
+#sample_n() & sample_frac()
+#grab a random sample: 
+  flights %>% sample_n(5, replace = FALSE)
+
+########select()
+
+#select to keep variables: 
+  flights %>% select(year, month, day)
+
+#select to exclude variables: 
+  flights %>% select(-c(year, month, day))
+
+#select a range of variables: 
+  flights %>% select(year:day)
+
+  ####Helper functions to use within select():
+  #matches names that begin with "abc": 
+    starts_with("abc")
+    
+  #matches names that end with "xyz": 
+    ends_with("xyz")
+    
+  #matches names that contain "ijk": 
+    contains("ijk")
+
+########arrange()
+    
+#arrange a data set by the values in one or more variables:
+  flights %>% arrange(year, month, day)
+#arrange in the reverse the order:
+  flights %>% arrange(desc(dep_delay))
+     
+########distinct()
+
+#filter for unique rows:
+  flights %>% select(dest) %>% distinct() %>% arrange(dest)
+
+########pull()
+#pull to extract a column as a vector:
+  flights %>% slice(1:6) %>% pull(carrier)
+  
+########mutate()
+
+#mutate to add new variables:
+  flights %>% mutate(gain = dep_delay - arr_delay)
+
+  #refer to columns that you’ve just created:
+     flights %>%
+         mutate(
+               gain = dep_delay - arr_delay,
+               hours = air_time / 60,
+               gain_per_hour = gain / hours)
+
+  #transform existing variable:
+    flights %>% mutate(origin = factor(origin))
+
+########group_by()
+
+#Do calculations on groups.
+#When you use the dplyr verbs on a grouped data frame they'll be automatically applied "by group".
+    
+########summarise()
+
+#summarise to reduce variables to a value:
+     flights %>%
+          summarise(delay = mean(dep_delay, na.rm = TRUE))
+
+
+```
+
+## DPLYR Your Turn Pracice
+
+```{r flights_YourTurn}
+library(dplyr)
+library(nycflights13)
+str(flights)
+?flights
+# Find all flights that had an arrival delay of two or more hours.
+flights %>% 
+  filter(arr_delay>=120) %>% 
+  select(1:3, arr_delay)
+# Find all flights that were delayed by at least an hour, but made up over 30 minutes in flight
+flights %>% 
+  filter(dep_delay>=60, dep_delay-arr_delay>30)
+# Brainstorm as many ways as possible to select dep_time, dep_delay, arr_time, and arr_delay from flights.
+flights %>% 
+  select(dep_time, dep_delay, arr_time, arr_delay)
+
+flights %>% names()
+flights %>% 
+  select(4,6,7,9)
+
+flights %>% 
+  select(starts_with("dep"),starts_with("arr"))
+
+flights %>% 
+  select(ends_with("delay"), ends_with("time"),-starts_with("sched"),-air_time)
+
+# What happens if you include the name of a variable multiple times in a select() call?
+flights %>% 
+  select(year, year, year)
+
+# Sort flights to find the most delayed flights. Find the flights that left earliest.
+flights %>% 
+  arrange(desc(dep_delay)) %>% 
+  select(flight, dep_time, dep_delay) %>% 
+  head()
+
+flights %>% 
+  arrange(dep_delay) %>% 
+  select(flight, dep_time, dep_delay) %>% 
+  head()
+  
+
+# Which flights traveled the longest? Which traveled the shortest?
+flights %>%
+  arrange(desc(air_time)) %>% 
+  select(flight, air_time) %>% 
+  head()
+flights %>%
+  arrange(air_time) %>% 
+  select(flight, air_time) %>% 
+  head()
+# Calculate the air speed of each flight in miles per minute (create mpm) using distance and air_time.
+flights %>% 
+  mutate(air_speed=(distance/air_time)) %>% 
+  select(flight, air_speed) %>% 
+  head()
+
+# Add to the mutate() statement from above to calculate the air speed in miles per hour (create mph).
+flights %>% 
+  mutate(air_speed_mpm=(distance/air_time),
+         air_speed_mph=(distance/(air_time/60))) %>% 
+  select(flight, air_speed_mpm,air_speed_mph) %>% 
+  head()
+
+# Compute arr_hour and arr_min from arr_time. 
+# Hint: use modular arithmetic %/% for hour and %% for minute
+flights %>% 
+  mutate(arr_hour=(arr_time %/% 60), ##how many times 60 fits in arr_time
+         arr_min=arr_time %% 60) %>%  ##the re
+  select(flight,arr_time, arr_hour, arr_min) %>% 
+  head()
+
+
+# Find the 10 most delayed flights using a ranking function. How do you want to handle ties? Check ?min_rank vs. ?row_number vs. 
+# ?dense_rank Print the top 10 in descending order according to the amount of delay.
+flights %>% 
+  mutate(delay_rank=min_rank(desc(arr_delay))) %>%
+  filter(delay_rank<11) %>% 
+  select(arr_delay, delay_rank) %>% 
+  arrange(desc(arr_delay))
+  
+# Compare dep_time, sched_dep_time, and dep_delay. What do you expect to see? What do you see? What do you need to do to fix it?
+flights %>% 
+  mutate(test=dep_time-sched_dep_time) %>% 
+  select(dep_time, sched_dep_time, dep_delay, test) %>% 
+  slice(1:10)
+
+# Calculate the average delay per date.
+flights %>% 
+  group_by(year, month, day) %>% 
+  summarise(avg_delay=mean(arr_delay, na.rm=TRUE)) %>% 
+  select(year, month, day, avg_delay)
+  
+
+# What time of day should you fly if you want to avoid delays as much as possible?
+flights %>% 
+  group_by(hour) %>% 
+  summarise(avg_delay=mean(arr_delay, na.rm=TRUE)) %>% 
+  select(hour, avg_delay) %>% 
+  arrange(avg_delay)
+
+# Explore the relationship between the distance and average delay for each destination. Also calculate the number of flights flown to each destination.
+flights %>% 
+  group_by(dest) %>% 
+  summarise(avg_delay=mean(arr_delay, na.rm=TRUE),
+            count=n(),
+            avg_distance=mean(distance, na.rm=TRUE)) %>% 
+  ggplot(aes(x=avg_distance, y=avg_delay))+geom_point(aes(color=count))
+  
+flights %>% 
+  group_by(dest) %>% 
+  summarise(avg_delay=mean(arr_delay, na.rm=TRUE),
+            count=n(),
+            avg_distance=mean(distance, na.rm=TRUE)) %>% 
+  ggplot(aes(x=avg_distance, y=avg_delay))+
+  geom_hline(aes(yintercept=0), alpha=0.7, color="blue")+
+  geom_point(aes(color=count, size=count, alpha=.3))
+
+# Which carrier has the worst delays?
+flights %>% 
+  group_by(carrier) %>% 
+  summarize(avg_delay=mean(arr_delay, na.rm=TRUE)) %>% 
+  arrange(desc(avg_delay))
+
+# Rank airlines by the number of destinations that they fly to, considering only those airports that are flown to by two or more airlines.
+flights %>% 
+  group_by(dest) %>% 
+  mutate(n_carrier=n_distinct(carrier, na.rm=TRUE)) %>% 
+  filter(n_carrier>=2) %>% 
+  group_by(carrier) %>% 
+  summarize(n_destination=n_distinct(dest, na.rm=TRUE)) %>% 
+  mutate(dest_rank=min_rank(desc(n_destination))) %>% 
+  arrange(dest_rank)
+
+# Look at the number of cancelled flights per day. Is there a pattern? Is the proportion of cancelled flights related to the average delay?
+flights %>% 
+  mutate(cancelled=(is.na(arr_delay)|is.na(dep_delay))) %>% 
+  group_by(year, month, day) %>% 
+  summarise(prop_cancelled=mean(cancelled),
+            avg_delay=mean(arr_delay, na.rm=TRUE)) %>% 
+  ggplot()+geom_point(aes(x=avg_delay, y=prop_cancelled))
+  
+```
+
+```{r}
+str(flights)
+
+
+```
+
+# Tidyr
+
+## Tidy Data
+
+1. Each variable is one column.
+2. Each observation is one row.
+3. Each value must have its own cell.
+
+Sources of messiness:
+1. Column headers are values, not variable names.
+  - e.g. treatmenta, treatmentb 
+2. Multiple variables are stored in one column.
+  - e.g. Fall 2015, Spring 2016 or 
+  - "1301 8th St SE, Orange City, Iowa 51041 (42.99755, -96.04149)", 
+  - "2102 Durant, Harlan, Iowa 51537 (41.65672, -95.33780)" 
+3. Multiple observational units are stored in the same table. 
+4. A single observational unit is stored in multiple tables.
+
+Tidy data example:
+* treatment and patient uniquely describe a single row in the dataset.
+* treatment and patient are **key variables**,
+* score is a **measurement variable**
+* this makes treatment-patient and score a **key-value pair**
+
+**Key-Value pairs (KVP)** - also attribute-value, field-value, name-value: abstract data representation that allows a lot of flexibility
+One way of telling whether a data set is tidy is to check that all keys for a value are aligned in one row.
+
+## Tidying Data Functions
+Very few functions are needed for tidying data:
+* Messy (1): tidyr functions pivot_longer() and pivot_wider().
+  - pivot_longer(data, cols, names_to = "key", values_to = "value"): take multiple columns and collapse into key-value pairs
+  - pivot_wider(data, names_from = name, values_from = key): spread a key-value pair across multiple columns.
+* Messy (2): tidyr function separate(data, col, into, sep = "[^[:alnum:]]+"):
+  - separate one column into multiple columns
+  - Messy (3): dplyr - some combination of the functions discussed previously
+* Messy (4): dplyr functionality join (and friends) to combine multiple data sets
+
+## French Fries Example
+
+1. To tidy a dataset like this, we need to pivot the offending columns into a new pair of variables. To describe that operation we need three parameters:
+  - The set of columns whose names are values, not variables. In this example, those are the columns potato, buttery, grassy, rancid, and painty.
+  - The name of the variable to move the column names to. Here it is scale.
+  - The name of the variable to move the column values to. Here it is score
+
+Together those parameters generate the call to pivot_longer():
+pivot_longer(data, 
+              cols = c("a1", "a2", "a3"), 
+              names_to = "key", 
+              values_to = "value")
+Graphic of what is happening: https://swcarpentry.github.io/r-novice-gapminder/14-tidyr/
+
+2. Sometimes, we’ll have data that we want to spread over multiple columns.
+  - For our data, we’ll use pivot_wider() to spread the replicates across multiple columns
+  - pivot_wider() is the opposite of pivot_longer(). This time we need two parameters:
+    - The column to take variable names from. Here, it's rep.
+    - The column to take values from. Here it's score.
+    pivot_wider(data, 
+            values_from = value, 
+            names_from = key)
+            
+* pivot_wider basically the inverse of pivot longer if the other column data is the same (front parts); aka collapsable
+
+when we use pivot_longer() the key information is duplicated
+
+when using pivot_wider() we need to make sure that the information outside the key and value is identical for all levels (and combinations of levels) of the key variable.
+
+If the info is not identical across levels, missing values are introduced into the new data set.
+
+```{r FrechFriesTidyDataExample}
+french_fries %>% head()
+#wide data to long data
+ff_long <- french_fries %>% 
+  pivot_longer(cols = potato:painty, 
+               names_to = "scale", 
+               values_to = "score")
+ff_long
+ff_long %>% head()
+
+#Wide data to long data
+
+ff_long %>% 
+  pivot_wider(names_from = rep, values_from = score) %>% 
+  head()
+ff_long %>% 
+  pivot_wider(names_from = rep, values_from = score) %>% 
+  ggplot(aes(x = `1`, y = `2`)) + 
+  geom_point() + 
+  geom_abline(colour = "grey50") +
+  facet_wrap(~scale)
+```
+
+```{r YourTurn}
+#For this your turn use the french_fries data from the reshape2 package: data("french_fries", package="reshape2")
+
+#Use pivot_longer() from the tidyr package to combine the different scales for assessing french fries into a single variable. Call the key-value pair "scale" and "score".
+library(reshape2)
+french_fries %>%
+  pivot_longer(cols= potato:painty,
+               names_to = "scale",
+               values_to = "score")
+
+#Use pivot_wider() from the tidyr package to get a format in which you can directly compare values from week 1 to week 10. Plot a scatterplot of values in week 1 against week 10. Facet by treatment and scale, color by individuals and use different shapes for the replicates. Is there a pattern visible?
+french_fries %>%
+  pivot_longer(cols= potato:painty,
+               names_to = "scale",
+               values_to = "score") %>% 
+  pivot_wider(names_from = time,
+              values_from = score) %>% 
+  ggplot(aes(x = `1` , y = `10`))+
+  geom_point(aes(color=subject, shape=factor(rep))) + facet_wrap(~treatment~scale)+geom_abline(alpha=.4) ##my try
+
+french_fries %>%
+  pivot_longer(cols= potato:painty,
+               names_to = "scale",
+               values_to = "score") %>% 
+  pivot_wider(names_from = time,
+              values_from = score) %>% 
+  ggplot(aes(x = `1` , y = `10`))+
+  geom_point(aes(color=subject, shape=factor(rep))) + facet_grid(treatment~scale)+geom_abline(alpha=.4) ##use facet_grid for faceting by 2 variables makes it prettier
+
+####################
+
+# For this your turn use the fbiwide data from the classdata package: data("fbiwide", package="classdata")
+
+# Use pivot_longer() from the tidyr package to combine the variables for the different types of crimes into one variable. Call the key-value pair "Type" and "Incidences". Compute a crime rate
+fbiwide %>% head()
+fbiwide %>% 
+  pivot_longer(cols = Aggravated.assault:Robbery,
+               names_to = 'Type',
+               values_to = 'Incidences') %>% 
+  mutate(crime_rate = Incidences/Population)
+  
+# Only consider crime rates for Iowa and Minnesota. Use pivot_wider() to create incidence columns for each of these states. Plot crimes in Iowa against crimes in Minnesota, colour by type of crime. Note: you need to exclude some variables.
+
+fbiwide %>% 
+  pivot_longer(cols = Aggravated.assault:Robbery,
+               names_to = 'Type',
+               values_to = 'Incidences') %>% 
+  mutate(crime_rate = Incidences/Population) %>% 
+  filter(State == 'Iowa' | State == 'Minnesota') %>% 
+  select(-c(Abb, Incidences, Population)) %>% 
+  pivot_wider(names_from = State,
+              values_from = crime_rate) %>% 
+  ggplot(aes(x=`Iowa`, y=`Minnesota`))+geom_point(aes(color=Type)) + geom_abline()
+ 
+#Why are pivot_longer() and pivot_wider() not perfectly symmetrical? Carefully consider the following example:
+stocks <- tibble(
+  year   = c(2015, 2015, 2016, 2016),
+  half  = c(   1,    2,     1,    2),
+  return = c(1.88, 0.59, 0.92, 0.17))
+stocks %>% 
+  pivot_wider(names_from = year, values_from = return) %>% 
+  pivot_longer(`2015`:`2016`, names_to = "year", values_to = "return")
+
+#Hint: look at the variable types and think about column names
+str(stocks)
+#Hint: pivot_longer() has a names_ptype argument, e.g. names_ptype = list(year = double()). What does it do?
+stocks %>% 
+  pivot_wider(names_from = year, values_from = return) %>% 
+  pivot_longer(`2015`:`2016`, names_to = "year", values_to = "return", names_ptype=list(year=double()))
+
+
+```
+
+# Messy (2)
+MULTIPLE VARIABLES ARE STORED IN ONE COLUMN
+
+Use **separate()** to split values wherever a separator character appears
+
+     data %>% 
+          separate(combined_var, into = c("var1", "var2"))
+
+
+**separate()** arguments:
+* the name of the column to separate
+* the names of the columns to separate into
+
+Optional **separate()** arguments:
+* sep : a specific character to use to separate a column (interpreted as a regular expression) OR a vector of integers (positions to split at)
+* **convert = TRUE** : attempt to convert variable types to something more suitable than the existing type.
+
+```{r}
+df <- data_frame(x = c(NA, "a.1", "a.4", "b.3"))
+df
+df %>% separate(x, into = c("A", "B"))
+df %>% separate(x, into = c("A", "B"), sep = "([.])", convert = TRUE)
+```
+
+```{r}
+url <- "https://github.com/Stat579-at-ISU/materials/blob/master/03_tidyverse/data/Iowa_Liquor_Sales.csv.zip?raw=TRUE"
+download.file(url, "iowa.zip", mode="wb")
+iowa <- readr::read_csv("iowa.zip")
+str(iowa)
+
+
+#Check the help for the function parse_number() in the readr package and use it on store location. What result did you get?
+parse_number(iowa$`Store Location`)
+
+#Use separate() to split the date variable into year, month and day.
+?separate
+separate(iowa,2, c("Month", "Day", "Year"), remove=FALSE)
+
+iowa %>% 
+  separate(Date, into= c("Month", "Day", "Year")) %>% glimpse()
+#Use separate() again to extract geographic latitude and longitude 
+#Hint: you might need several steps of separate()
+iowa %>% 
+  separate(`Store Location`, into = c("var1", "var2", "var3"), sep = " ") %>%
+  select(-var1) %>% 
+  mutate(latitude = parse_number(var2),
+         longitude = parse_number(var3)) %>% 
+  select(-var2, -var3) %>% 
+  head()
+
+#Use dplyr functionality to answer the following questions:
+#What is the total amount spent on Liquor Sales?
+iowa %>% 
+  summarise(total_sales = sum(`Sale (Dollars)`, na.rm=TRUE)) 
+
+iowa %>% 
+  separate(Date, into= c("Month", "Day", "Year")) %>% 
+  ggplot(aes(x=Year, weight = `Sale (Dollars)`))+geom_bar()
+
+iowa %>% 
+  separate(Date, into= c("Month", "Day", "Year")) %>% 
+  ggplot(aes(x=Year, weight = `Volume Sold (Gallons)`))+geom_bar()
+
+#What is the single largest sale (in volume/in dollar amount)?
+iowa %>% 
+  summarise(max_sale=max(`Sale (Dollars)`, na.rm=TRUE),
+            max_volume = max(`Volume Sold (Liters)`, na.rm=TRUE))
+iowa %>% 
+  arrange(desc(`Volume Sold (Gallons)`)) %>% 
+  slice(1) %>% 
+  str()
+
+iowa %>% 
+  arrange(desc(`Sale (Dollars)`)) %>% slice(1) %>% str()
+#Plot geographic longitude and latitude. Where are liquor sales in Ames happening?
+str(iowa)
+iowa %>% 
+  filter(City=="Ames") %>% 
+  separate(`Store Location`, into = c("var1", "var2", "var3"), sep = " ") %>%
+  select(-var1) %>% 
+  mutate(latitude = parse_number(var2),
+         longitude = parse_number(var3)) %>% 
+  select(-var2, -var3) %>% 
+  ggplot(aes(x=latitude, y=longitude))+geom_point()
+
+
+```
+
+
+```{r}
+library(classdata)
+head(box)
+
+#For this your turn use the box data from the classdata package.
+#Big goal: we want to create a new dataset movie that consists of movie, distributor, date of first time the movie shows up in the box office, and the number of weeks the movie has been released at that time.
+movie<-box %>% 
+          select(Movie, Distributor, Week, Date) %>% 
+          group_by(Movie, Distributor) %>% 
+          summarise(Weeks=max(Week),
+                    Release=min(Date))
+
+
+#What are the key variables for the new dataset?
+# movie and distributor
+
+#For the key variable(s), use summarize() to find the first time a movie shows up in the box office and find the related number of weeks.
+
+  
+  
+```
+
+key: movie, distributor, date
+measurement: gross, number of theaters
+all of other variables can be derived from the measurement variables
+
+
+```{r Messy4}
+LahmanData
+HallOfFame %>% head()
+
+#For this your turn use the HallOfFame and Master data from the Lahman package
+#Identify all players who were inducted in the Hall of Fame in 2017, by filtering the Master data for their player IDs.
+
+HallOfFame %>% 
+  filter(yearID==2017) %>% pull(playerID) #makes a vector
+
+Master %>% 
+  filter(playerID %in% (HallOfFame %>% 
+  filter(yearID==2017) %>% pull(playerID)))
+
+# For this exercise, use the data from the Lahman package.
+# Join (relevant pieces of) the Master data set and the HallOfFame data.
+left_join(HallOfFame, Master, by = "playerID")
+HallOfFame %>% left_join(Master, by = "playerID")
+
+# Find all Hall of Famers who were alive as of 2019. 
+# (use the data resulted from the joining done in question 1)
+HallOfFame %>% 
+  left_join(Master, by = "playerID") %>%  
+  filter(inducted=="Y", is.na(deathYear)) %>% 
+  select(nameFirst, nameLast) %>% 
+  arrange(nameLast) %>% 
+  head()
+
+
+# How many attempts at being inducted to the HoF does Sammy Sosa have already? (use the data resulted from the joining done in question 1)
+HallOfFame %>% 
+  left_join(Master, by = "playerID") %>% 
+  filter(nameLast=="Sosa")
+
+# For this exercise, use the data from the classdata package
+# Load the classdata package into your R session.
+# Investigate data sets box and budget.
+str(box)
+budget
+# Join the two datasets to incorporate the release date of movies into the box office gross.
+box %>% 
+  left_join(budget, by = "Movie")
+# Check on the dimensions of the data sets before and after the join. Where are potential problems?
+dim(box)
+dim(budget)
+box %>% 
+  left_join(budget, by = "Movie") %>% dim()
+  
+  #Movie titles could have the same name
+  box %>% 
+    filter(Movie=="Beauty and the Beast")  
+  budget %>% 
+    filter(Movie=="Beauty and the Beast")
+  box %>% 
+  left_join(budget, by = "Movie") %>%
+  filter(Movie=="Beauty and the Beast")
+
+# Use anti_join to detect problematic cases.
+box %>% 
+  anti_join(budget, by = "Movie") %>% head()
+anti_join(budget, box, by = "Movie") #have budget data for but not box office data
+
+
+
+
+
+```
+
+
+```{r}
+# For this exercise, use the data from the nycflight13 package.
+# Add the location of the origin and destination (i.e. the lat and lon) from the airports data to the flights data
+dim(airports)
+dim(flights)
+
+airport_locations<-airports %>% 
+                      select(faa, lat, lon)
+
+flights %>% 
+  select(year:day, hour, origin, dest) %>% 
+  left_join(airport_locations, by = c("origin" = "faa")) %>% 
+  left_join(airport_locations, by = c("dest" = "faa"), suffix = c("_origin", "_dest"))
+
+?left_join
+
+# Is there a relationship between the age of a plane and its arrival delays?
+  # Join the tables flights and planes and calculate the average arrival    delay for each age of a flight. Since there are few planes older than 25   years, truncate age at 25 years.
+# Plot age against the average arrival delay.
+planes_ages<-planes %>% 
+  select(tailnum, plane_year=year)
+
+flights_subset<-flights %>% 
+  select(year:day, arr_delay, tailnum)
+
+flights_subset %>% 
+  left_join(planes_ages) %>% 
+  mutate(plane_age = year - plane_year) %>% 
+  filter(is.na(plane_age)) %>% 
+  mutate(plane_age = ifelse(plane_age>26, 25, planes_age)) %>% 
+  group_by(plane_age) %>% 
+  summarise(arr_delay_mean = mean(arr_delay, na.rm=TRUE)) %>% 
+  ggplot()+geom_point(aes(x=plane_age, y=arr_delay_mean))
+
+
+# What weather conditions make it more likely to see a departure delay?
+# Join the tables flights and weather, calculate the mean departure delay for each amount of precipitation, and plot your results.
+flight_weather<-flights %>% 
+  left_join(weather) %>% 
+  select(year:day, dep_delay, temp:visib)
+flight_weather %>% 
+  group_by(precip) %>% 
+  summarise(mean_delay = mean(dep_delay, na.rm=TRUE)) %>% 
+  ggplot(aes(x=precip, y=mean_delay))+geom_point()+ geom_line()
+
+#For this exercise, use the data from the nycflight13 package.
+#What does anti_join(flights, airports, by = c("dest" = "faa")) tell you?
+anti_join(flights, airports, by = c("dest" = "faa"))
+# the rows that dest from flights != faa from airports
+
+
+#What does anti_join(airports, flights, by = c("faa" = "dest")) tell you?
+anti_join(airports, flights, by = c("faa" = "dest"))
+# the same thing
+
+# Use the box data from the package classdata
+# Are there any missing values in the dataset box?
+is.na.data.frame(box)
+#yes
+
+# What are the values of Rank when Rank.Last.Week is missing?
+box %>% 
+  filter(is.na(Rank.Last.Week)) %>% 
+  select(Rank, Rank.Last.Week)
+
+# What is the dimension of the data set box, when removing all missing values with the function na.omit()?
+dim(na.omit(box))
+
+# Why does the following statement fail? 
+# box$Rank.Last.Week <- na.omit(box$Rank.Last.Week)
+box$Rank.Last.Week <- na.omit(box$Rank.Last.Week)
+# deleting the missing values from rank.last.week but then trying to put it back into the box data frame with different dimensions
+
+# Error in `$<-.data.frame`(`*tmp*`, Rank.Last.Week, value = c(1, 2, 3, : replacement has 26616 rows, data has 32885
+```
+
