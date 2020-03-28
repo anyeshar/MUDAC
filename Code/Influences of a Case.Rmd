@@ -12,6 +12,8 @@ library(ggplot2)
 train_dockets <- read_csv("~/MUDAC/Data/train_dockets.csv")
 test_dockets <- read_csv("~/MUDAC/Data/test_dockets.csv")
 districts <- read_csv("~/MUDAC/Data/districts.csv")
+train_other_motions<-read_csv("~/MUDAC/Data/test_other_motions.csv")
+train_terminating_motions<-read.csv("~/MUDAC/Data/train_terminating_motions.csv")
 ```
 
 ## R Markdown
@@ -20,17 +22,43 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r Characteristics}
-ggplot() +
-  geom_point(aes)
+```{r Data Cleaning}
+train_dockets <- replace(train_dockets, train_dockets == -8, NA)
+
+train_total_motions <- train_terminating_motions %>% 
+  group_by(mudac_id, motion_type) %>% 
+  summarise(total_motion=n()) %>% 
+  pivot_wider(values_from=total_motion,
+              names_from=motion_type)
+  
+train_dockets %>% 
+  mutate(outcome = factor(outcome, levels=c("Settled", "Dismissed", "Summary Judgment", "Verdict","Other")))
+  
+train_joined <- left_join(train_dockets, train_total_motions)
 ```
 
 ## Including Plots
 
 You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r Plots}
+train_joined %>% 
+  ggplot(aes(x=outcome)) +
+  geom_bar(aes(fill=outcome))
+
+train_joined %>% 
+  ggplot(aes(x=district)) +
+  geom_bar(aes(fill=outcome)) 
+
+train_joined %>% 
+  filter(`Motion to Dismiss` >= 1) %>% 
+  ggplot(aes(x=outcome)) +
+  geom_bar(aes(fill=outcome)) 
+
+train_joined %>% 
+  filter(`Motion for Summary Judgment` >= 1) %>% 
+  ggplot(aes(x=outcome)) +
+  geom_bar(aes(fill=outcome)) 
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
