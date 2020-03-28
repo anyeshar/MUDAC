@@ -1,14 +1,22 @@
 #test
 library(tidyverse)
 districts<-read_csv("~/Documents/MUDAC/Data/district_fips_code.csv")
-distric_fips_code<-read_csv("~/Documents/MUDAC/Data/district_fips_code.csv")
+districts[districts==-8]<-NA
+
+district_fips_code<-read_csv("~/Documents/MUDAC/Data/district_fips_code.csv")
+district_fips_code[district_fips_code==-8]<-NA
 
 train_dockets<-read_csv("~/Documents/MUDAC/Data/train_dockets.csv")
-train_dockets$outcome<-factor(train_dockets$outcome, levels=c("Settled", "Dismissed", "Summary Judgment", "Verdict","Other"))
+train_dockets$outcome<-factor(train_dockets$outcome)
 str(train_dockets)
+train_dockets[train_dockets==-8]<-NA
+dim(train_dockets)
 
 train_other_motions<-read_csv("~/Documents/MUDAC/Data/test_other_motions.csv")
+train_other_motions[train_other_motions==-8]<-NA
+
 train_terminating_motions<-read.csv("~/Documents/MUDAC/Data/train_terminating_motions.csv")
+train_terminating_motions[train_terminating_motions==-8]<-NA
 
 test_terminating_motions<-read_csv("~/Documents/MUDAC/Data/test_terminating_motions.csv")
 test_dockets<-read_csv("~/Documents/MUDAC/Data/train_dockets.csv")
@@ -23,12 +31,25 @@ levels(train_terminating_motions$motion_type)
 # [4] "Motion to Consolidate"                "Motion to Dismiss"                    "Motion to Remand"                    
 # [7] "Motion to Transfer Venue" 
 
-dim(train_terminating_motions)
+train_joined<-train_terminating_motions %>% 
+  group_by(mudac_id, motion_type) %>% 
+  summarise(total_motion=n()) %>% 
+  pivot_wider(values_from=total_motion,
+              names_from=motion_type) %>% left_join(train_dockets, by="mudac_id")
+
+train_joined %>% filter(`Motion to Dismiss`>=1) %>% 
+  ggplot(aes(x=district)) +
+  geom_bar(aes(fill=outcome))
+
+train_joined %>% 
+  filter(`Motion to Dismiss` >= 1) %>% 
+  ggplot(aes(x=outcome)) +
+  geom_bar(aes(fill=outcome))
 
 train_dissmiss<-train_terminating_motions %>% 
-  filter(motion_type=="Motion to Dismiss") %>% left_join(train_dockets, by="mudac_id")
-
-train_dissmiss %>% group_by(circuit, district, office, outcome) %>% summarise(n=n()) %>% ggplot(aes(x=outcome))+geom_bar()
+  filter(motion_type=="Motion to Dismiss") %>% dim()+ left_join(train_dockets, by="mudac_id")
+?forcats::fct_explicit_na
+train_dissmiss %>% group_by(outcome, issue_joined) %>% summarise(n=n())
 # outcome              n
 # <fct>               <int>
 #   1 Settled         9629
@@ -38,12 +59,15 @@ train_dissmiss %>% group_by(circuit, district, office, outcome) %>% summarise(n=
 # 5 Other             2040
 # 6 NA                 580
 
-train_dissmiss %>% names()
+train_dissmiss %>% dim()
 
 train_summary_judgement<-train_terminating_motions %>% 
   filter(motion_type=="Motion for Summary Judgment") %>% left_join(train_dockets, by="mudac_id")
 
-train_summary_judgement %>% group_by(outcome) %>% summarise(n=n())
+train_summary_judgement %>% 
+  group_by(circuit, district, office, outcome) %>% 
+  summarise(n=n()) %>% 
+  ggplot(aes(x=outcome))+geom_bar()
 # outcome              n
 # <fct>              <int>
 # 1 Settled           8610
@@ -52,5 +76,3 @@ train_summary_judgement %>% group_by(outcome) %>% summarise(n=n())
 # 4 Verdict           2563
 # 5 Other             1725
 # 6 NA                 273
-
-
