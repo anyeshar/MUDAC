@@ -109,17 +109,14 @@ transformedTest <- data.frame(predict(dummyTest, newdata = test_selection))
 transformedSJ <- transformed %>% select(-settled)
 transformedSET <- transformed %>% select(-summary_judgment)
 
-
-
-
 # --------Modeling Start---------
 
 # Partition the data set to make it more reasonable to deal with
-inTrainingSJ <- createDataPartition(transformedSJ$summary_judgment, p = .02, list = FALSE)
+inTrainingSJ <- createDataPartition(transformedSJ$summary_judgment, p = .2, list = FALSE)
 trainingSJ <- transformedSJ[ inTrainingSJ,]
 testingSJ  <- transformedSJ[-inTrainingSJ,]
 
-inTrainingSET <- createDataPartition(transformedSET$settled, p = .02, list = FALSE)
+inTrainingSET <- createDataPartition(transformedSET$settled, p = .2, list = FALSE)
 trainingSET <- transformedSET[ inTrainingSET,]
 testingSET  <- transformedSET[-inTrainingSET,]
 
@@ -150,77 +147,57 @@ head(final_SETPrediction)
 summary(final_SETPrediction)
 
 # Produce a table of probabilities
+ID <- test_dockets$mudac_id
+
+# SJ
 final_probSJ <- predict(rfFitSJ, transformedTest, type="prob")
 head(final_probSJ)
-          #write.csv(final_probSJ, "Probability of SJ.csv")
 
+# SET
 final_probSET <- predict(rfFitSET, transformedTest, type="prob")
 head(final_probSET)
 
+# Produce Table 1
+probabilitySJ <- final_probSJ[,2]
+SJTable <- data.frame(Id = ID, Probability = probabilitySJ)
+SJTable$Id<-as.character(SJTable$Id)
+names(SJTable)[1]<-"mudac_id"
+names(SJTable)[2]<-"probabilitySJ"
+SJTable<-SJTable %>% mutate(idSJ=paste(mudac_id, "SummaryJudgment", sep="-"))
+
+# Produce Table 2
+probabilitySET <- final_probSET[,2]
+SETTable <- data.frame(Id = ID, Probability = probabilitySET)
+SETTable$Id<-as.character(SETTable$Id)
+names(SETTable)[1]<-"mudac_id"
+names(SETTable)[2]<-"probabilitySET"
+SETTable<-SETTable %>% mutate(idSET=paste(mudac_id, "Settled", sep="-"))
+
+# Final Table
+Submission <- SJTable %>% 
+  left_join(SETTable, by="mudac_id") %>%
+  pivot_longer(cols=c("probabilitySJ","probabilitySET"),
+               names_to="type",
+               values_to="Probability") %>%
+  mutate(Id=case_when(type=="probabilitySJ"~idSJ,
+                      type=="probabilitySET"~idSET)) %>% 
+  select(Id, Probability)
+
+write.csv(Submission, "iastate.edu_Team_30.csv", row.names = FALSE)
+
+# Make copies of transformed data test set
+copyTransformedTest <- transformedTest
+
+# Add empty col for SJ and SET
+copyTransformedTest$summary_judgment <- factor(c(0,1))
+copyTransformedTest$settled <- factor(c(0,1))
+
 # Produce a confusion matrix
-    # confusionMatrix(final_probSJ, as.factor(testingSJ$summary_judgment))
-    # confusionMatrix(final_probSET, as.factor(testingSET$settled))
+# confusionMatrix(final_probSJ, as.factor(trainingSJ$summary_judgment))
+# confusionMatrix(final_probSET, as.factor(trainingSET$settled))
 
 # Provide a list of the most important variables
 varImp(rfFitSJ)
 varImp(rfFitSET)
 
-# -------Other Random Stuff--------
-gbmFit1 <- train(summary_judgment~., 
-                 data = training, 
-                 method = "gbm")
-gbmFit1
-ggplot(gbmFit1)
 
-gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
-                        n.trees = (1:30)*50, 
-                        shrinkage = 0.1,
-                        n.minobsinnode = 20)
-
-gbmFit2 <- train(summary_judgment~., 
-                 data = training, 
-                 tuneGrid = gbmGrid, 
-                 method = "gbm")
-gbmFit2
-ggplot(gbmFit2)
-
-svmFit1 <- train(summary_judgment~., 
-                 data = training, 
-                 method = "svmRadial")
-svmFit1
-
-
-resamps <- resamples(list(GBM = gbmFit1,
-                          SVM = svmFit1,
-                          RF = rfFit1))
-resamps
-
-
-
-theme1 <- trellis.par.get()
-theme1$plot.symbol$col = rgb(.2, .2, .2, .4)
-theme1$plot.symbol$pch = 16
-theme1$plot.line$col = rgb(1, 0, 0, .7)
-theme1$plot.line$lwd <- 2
-trellis.par.set(theme1)
-bwplot(resamps, layout = c(3, 1))
-
-splom(resamps)
-
-?rfImpute
-
-predictors<-names(training)[!names(training) %in% "summary_judgment"]
-
-predTrain<-predict.train(object=rfFit1,testing[,predictors],type="raw")
-table(predTrain)
-
-densityplot(rfFitSJ, pch = "|")
-
-
-
-# # Preprocess the data to more accurately represent the data
-# pp_valuesSJ <- preProcess(train_procSJ, 
-#                      method = c("center", "scale","YeoJohnson", "nzv")) 
-# 
-# # Final data set to form model from
-# transformedSJ <- predict(pp_valuesSJ, train_procSJ)
