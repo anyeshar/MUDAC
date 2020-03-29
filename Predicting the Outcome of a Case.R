@@ -2,43 +2,55 @@
 
 # --------Package Installs---------
 install.packages("caret")
+install.packages("randomForest")
+install.packages("RANN")
 # --------Loading Libraries---------
 library(tidyverse)
 library(ggplot2)
 library(caret)
+library(randomForest)
+library(RANN)
 # --------Data Prepping---------
 train_dockets <- read_csv("~/MUDAC/Data/train_dockets.csv") # Load the Data Set In
 
-train <- train_dockets %>% 
-  select(-settled) # Remove Settled as we are prediciting Summary Judgment (SJ)
+train_dockets$summary_judgment <- as.factor(train_dockets$summary_judgment)
+train_dockets <- train_dockets %>% select(-settled)
 
-nzv <- nearZeroVar(train, saveMetrics= TRUE)
-nzv[nzv$nzv,][1:10,]
+pp_values <- preProcess(train_dockets, 
+                     method = c("center", "scale","YeoJohnson", "nzv")) # Processes the data to remove NA's
 
-pp_hpc <- preProcess(train[, -8], 
-                     method = c("center", "scale", "YeoJohnson", "nzv"))
-pp_hpc
+train_proc <- predict(pp_values, train_dockets) #Becomes a dataframe again
 
-transformed <- predict(pp_hpc, newdata = train[1:31, -8])
-head(transformed)
+train_proc <- train_proc %>% 
+  select(-mudac_id, -primarytitle, -nos_text, -protected_class, -additional_nos, -arbitration_at_filing,
+         -statute) 
+#Remove Problem Variables
 
-# --------Data Cleaning Finished---------
+train_proc$summary_judgment <- as.numeric(train_proc$summary_judgment)
+train_proc <- train_proc %>% mutate(summary_judgment = summary_judgment - 1)
+
+
+dummy <- dummyVars("~ .",
+                   data = train_proc,
+                   fullRank = T) #Creates Dummy Variables
+
+transformed <- data.frame(predict(dummy, newdata = train_proc))
+#Workable data set
 
 # --------Modeling Start---------
-fitControl <- trainControl(
-  method = "repeatedcv",
-  number = 10,
-  ## repeated ten times
-  repeats = 10)
-
 set.seed(825)
-gbmFit1 <- train(Class ~ ., data = transformed, 
-                 method = "gbm", 
-                 trControl = fitControl,
-                 ## This last option is actually one
-                 ## for gbm() that passes through
-                 verbose = FALSE)
-gbmFit1
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+inTraining <- createDataPartition(transformed$summary_judgment, p = .02, list = FALSE)
+training <- transformed[ inTraining,]
+testing  <- transformed[-inTraining,]
+rfFit1 <- train(summary_judgment~., 
+                data = training, 
+                method = "rf",
+                trControl = control)
+rfFit1
 
+
+predict(rfFit1, newdata = head(testing))
+
+warnings()
 ?train
-

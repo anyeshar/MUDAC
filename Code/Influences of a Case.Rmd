@@ -30,7 +30,6 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r Data Cleaning}
-train_dockets <- replace(train_dockets, train_dockets == -8, NA)
 districts[districts==-8]<-NA
 district_fips_code[district_fips_code==-8]<-NA
 
@@ -106,25 +105,25 @@ train_terminating_motions %>%
             total_D = sum(dismiss, na.rm=TRUE)) %>% 
   mutate(prop = total_D / total) %>% 
   ggplot(aes(x=total_motion)) +
-  geom_bar(aes(weight=prop, color=total_motion)) +
+  geom_bar(aes(weight=prop, fill="blue")) +
   labs(title = "Proportion of Successful Motions to Dismiss", 
        x = "Amount of Motions to Dismiss", 
        y = "Proportion of Successful Motions to Dismiss")
 
-train_terminating_motions %>% 
-  group_by(mudac_id, motion_type) %>% 
-  select(mudac_id, motion_type) %>% 
-  summarise(total_motion=n()) %>% 
-  left_join(train_dockets, by = "mudac_id") %>% 
-  filter(motion_type=="Motion to Dismiss", total_motion<=20) %>% 
-  mutate(dismiss = as.logical(outcome == "Dismissed")) %>% 
-  select(total_motion, dismiss) %>% 
-  group_by(total_motion) %>% 
-  ggplot(aes(fill=dismiss, x=total_motion)) +
-  geom_bar(aes(position = "fill", stat = "identity")) +
-  labs(title = "Proportion of Successful Motions to Dismiss", 
-       x = "Amount of Motions to Dismiss", 
-       y = "Proportion of Successful Motions to Dismiss")
+# train_terminating_motions %>% 
+#   group_by(mudac_id, motion_type) %>% 
+#   select(mudac_id, motion_type) %>% 
+#   summarise(total_motion=n()) %>% 
+#   left_join(train_dockets, by = "mudac_id") %>% 
+#   filter(motion_type=="Motion to Dismiss", total_motion<=20) %>% 
+#   mutate(dismiss = as.logical(outcome == "Dismissed")) %>% 
+#   select(total_motion, dismiss) %>% 
+#   group_by(total_motion) %>% 
+#   ggplot(aes(x=total_motion)) +
+#   geom_bar(aes(fill=dismiss), position = "fill") +
+#   labs(title = "Proportion of Successful Motions to Dismiss", 
+#        x = "Amount of Motions to Dismiss", 
+#        y = "Proportion of Successful Motions to Dismiss")
 
 train_terminating_motions %>% 
   group_by(mudac_id, motion_type) %>% 
