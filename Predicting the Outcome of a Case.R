@@ -4,12 +4,14 @@
 install.packages("caret")
 install.packages("randomForest")
 install.packages("RANN")
+install.packages('kernlab')
 # --------Loading Libraries---------
 library(tidyverse)
 library(ggplot2)
 library(caret)
 library(randomForest)
 library(RANN)
+library(kernlab)
 # --------Data Prepping---------
 train_dockets <- read_csv("~/MUDAC/Data/train_dockets.csv") # Load the Data Set In
 
@@ -30,8 +32,7 @@ pp_values <- preProcess(train_proc,
 
 transformed <- predict(pp_values, train_proc) #Becomes a dataframe again
 
-
-#Remove Problem Variables
+transformed <- transformed %>% select(-outcomeSummary.Judgment)
 
 
 
@@ -39,19 +40,59 @@ transformed <- predict(pp_values, train_proc) #Becomes a dataframe again
 #Workable data set
 
 # --------Modeling Start---------
-set.seed(825)
-control <- trainControl(method="repeatedcv", number=10, repeats=3)
-inTraining <- createDataPartition(transformed$summary_judgment, p = .005, list = FALSE)
+inTraining <- createDataPartition(transformed$summary_judgment, p = .015, list = FALSE)
 training <- transformed[ inTraining,]
 testing  <- transformed[-inTraining,]
+
 rfFit1 <- train(summary_judgment~., 
                 data = training, 
-                method = "rf",
-                trControl = control)
+                method = "rf")
 rfFit1
 
+gbmFit1 <- train(summary_judgment~., 
+                 data = training, 
+                 method = "gbm")
+gbmFit1
+ggplot(gbmFit1)
 
-predict(rfFit1, newdata = head(testing))
+gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
+                        n.trees = (1:30)*50, 
+                        shrinkage = 0.1,
+                        n.minobsinnode = 20)
+
+gbmFit2 <- train(summary_judgment~., 
+                 data = training, 
+                 tuneGrid = gbmGrid, 
+                 method = "gbm")
+gbmFit2
+ggplot(gbmFit2)
+
+svmFit1 <- train(summary_judgment~., 
+                 data = training, 
+                 method = "svmRadial")
+svmFit1
+
+
+resamps <- resamples(list(GBM = gbmFit1,
+                          SVM = svmFit1,
+                          RF = rfFit1))
+resamps
+
+
+
+theme1 <- trellis.par.get()
+theme1$plot.symbol$col = rgb(.2, .2, .2, .4)
+theme1$plot.symbol$pch = 16
+theme1$plot.line$col = rgb(1, 0, 0, .7)
+theme1$plot.line$lwd <- 2
+trellis.par.set(theme1)
+bwplot(resamps, layout = c(3, 1))
+
+splom(resamps)
+
+prediction <- predict(rfFit1, testing)
+head(prediction)
+confusionMatrix(prediction, as.factor(testing$summary_judgment))
 
 warnings()
 ?train
