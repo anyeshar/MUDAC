@@ -9,6 +9,7 @@ install.packages('kernlab')
 library(tidyverse)
 library(ggplot2)
 library(caret)
+library(randomForest)
 library(ranger)
 library(RANN)
 library(kernlab)
@@ -16,71 +17,153 @@ library(kernlab)
 
 # Load data sets in
 train_dockets <- read_csv("~/MUDAC/Data/train_dockets.csv") 
+train_terminating_motions <- read_csv("~/MUDAC/Data/train_terminating_motions.csv")
+train_other_motions <- read_csv("~/MUDAC/Data/train_other_motions.csv")
 test_dockets <- read_csv("~/MUDAC/Data/test_dockets.csv")
+test_terminating_motions <- read_csv("~/MUDAC/Data/test_terminating_motions.csv")
+test_other_motions <-read_csv("~/MUDAC/Data/test_other_motions.csv")
+
+# Combine the data sets together
+half_docket <- train_terminating_motions %>%
+  group_by(mudac_id, motion_type) %>%
+  summarise(total_motion=n()) %>%
+  pivot_wider(values_from=total_motion,
+              names_from=motion_type) %>% right_join(train_dockets, by="mudac_id")
+
+half_test <- test_terminating_motions %>%
+  group_by(mudac_id, motion_type) %>%
+  summarise(total_motion=n()) %>%
+  pivot_wider(values_from=total_motion,
+              names_from=motion_type) %>% right_join(test_dockets, by="mudac_id")
+
+# Add pp
+half_docket<-train_terminating_motions %>%
+  group_by(mudac_id, motion_type) %>%
+  summarise(mean_proceeding_percentile = mean(proceeding_precentile)) %>%
+  pivot_wider(values_from=mean_proceeding_percentile,
+              names_from=motion_type, names_prefix = "pp") %>% 
+  right_join(half_docket, by= "mudac_id")
+
+half_test<-test_terminating_motions %>%
+  group_by(mudac_id, motion_type) %>%
+  summarise(mean_proceeding_percentile = mean(proceeding_precentile)) %>%
+  pivot_wider(values_from=mean_proceeding_percentile,
+              names_from=motion_type, names_prefix = "pp") %>% 
+  right_join(half_test, by= "mudac_id")
+
+# Add other motions
+complete_docket <- train_other_motions %>%
+  group_by(mudac_id, motion_type) %>%
+  summarise(total_motion=n()) %>%
+  pivot_wider(values_from=total_motion,
+              names_from=motion_type) %>% right_join(half_docket, by="mudac_id")
+
+complete_test <- test_other_motions %>%
+  group_by(mudac_id, motion_type) %>%
+  summarise(total_motion=n()) %>%
+  pivot_wider(values_from=total_motion,
+              names_from=motion_type) %>% right_join(half_test, by="mudac_id")
 
 # Remove unwanted variables
-test_reducedSJ <- test_dockets %>% 
-  select(-mudac_id, -nos_text, -arbitration_at_filing, -additional_nos,
-         -statute) 
-train_reducedSJ <- train_dockets %>% 
-  select(-mudac_id, -primarytitle, -nos_text, -arbitration_at_filing, -additional_nos,
-         -statute, -settled, -outcome) 
+train_selection <- complete_docket %>% 
+  select(summary_judgment, settled, mudac_id,
+         after_ij_entry_count, days_opened, total_entry_count, filers_county,
+         before_ij_entry_count, attorneys_listed, year_filed, district,
+         `Motion to Dismiss`, `Motion for Summary Judgment`, `Motion in Limine`,
+         `ppMotion to Consolidate`, `ppMotion for Summary Judgment`)
+
+test_selection <- complete_test %>% 
+  select(after_ij_entry_count, days_opened, total_entry_count, filers_county,
+         before_ij_entry_count, attorneys_listed, year_filed, district,
+         `Motion to Dismiss`, `Motion for Summary Judgment`, `Motion in Limine`,
+         `ppMotion to Consolidate`, `ppMotion for Summary Judgment`, mudac_id)
+
+# Ungroup data sets
+train_selection <- ungroup(train_selection)
+test_selection <- ungroup(test_selection)
+
+# Remove MUDAC ID
+train_selection <- train_selection %>% select(-mudac_id)
+test_selection <- test_selection %>% select(-mudac_id)
+
+# Replace No motions with 0
+train_selection[is.na(train_selection)] <- 0 
+test_selection[is.na(test_selection)] <- 0 
 
 # Creates Dummy Variables
 dummy <- dummyVars("~ .",
-                   data = train_reducedSJ,
+                   data = train_selection,
                    fullRank = T) 
 
+dummyTest <- dummyVars("~ .",
+                       data = test_selection,
+                       fullRank = T) 
+
 # New data set with dummy variables replacing categorical variables
-train_procSJ <- data.frame(predict(dummy, newdata = train_reducedSJ))
+transformed <- data.frame(predict(dummy, newdata = train_selection))
 
-# Preprocess the data to more accurately represent the data
-pp_valuesSJ <- preProcess(train_procSJ, 
-                     method = c("center", "scale","YeoJohnson", "nzv")) 
+transformedTest <- data.frame(predict(dummyTest, newdata = test_selection))
 
-# Final data set to form model from
-transformedSJ <- predict(pp_valuesSJ, train_procSJ) 
+# Create new data frames for SJ (summary_judgment) and SET (settled)
 
-# Replace NA'a with -888
-transformedSJ[is.na(transformedSJ)]<- -888
+transformedSJ <- transformed %>% select(-settled)
+transformedSET <- transformed %>% select(-summary_judgment)
+
+
 
 
 # --------Modeling Start---------
 
 # Partition the data set to make it more reasonable to deal with
-inTrainingSJ <- createDataPartition(transformedSJ$summary_judgment, p = .05, list = FALSE)
+inTrainingSJ <- createDataPartition(transformedSJ$summary_judgment, p = .02, list = FALSE)
 trainingSJ <- transformedSJ[ inTrainingSJ,]
 testingSJ  <- transformedSJ[-inTrainingSJ,]
+
+inTrainingSET <- createDataPartition(transformedSET$settled, p = .02, list = FALSE)
+trainingSET <- transformedSET[ inTrainingSET,]
+testingSET  <- transformedSET[-inTrainingSET,]
 
 #Change to factor so we can run random forest
 trainingSJ$summary_judgment <- as.factor(trainingSJ$summary_judgment) 
 
+trainingSET$settled <- as.factor(trainingSET$settled)
+
 # Run basic model
 rfFitSJ <- train(summary_judgment~., 
                 data = trainingSJ, 
-                method = "ranger")
+                method = "rf")
 
+rfFitSET <- train(settled~.,
+                  data = trainingSET,
+                  method = "rf")
 # Output model
 rfFitSJ
+rfFitSET
 
 # Predict the testing set and output the results
-predictionSJ <- predict(rfFitSJ, testingSJ)
-head(predictionSJ)
-summary(predictionSJ)
+final_SJPrediction <- predict(rfFitSJ, transformedTest)
+head(final_SJPrediction)
+summary(final_SJPrediction)
+
+final_SETPrediction <- predict(rfFitSET, transformedTest)
+head(final_SETPrediction)
+summary(final_SETPrediction)
 
 # Produce a table of probabilities
-pred_probSJ <- predict(rfFitSJ, testingSJ, type="prob")
-head(pred_probSJ)
+final_probSJ <- predict(rfFitSJ, transformedTest, type="prob")
+head(final_probSJ)
+          #write.csv(final_probSJ, "Probability of SJ.csv")
+
+final_probSET <- predict(rfFitSET, transformedTest, type="prob")
+head(final_probSET)
 
 # Produce a confusion matrix
-confusionMatrix(predictionSJ, as.factor(testingSJ$summary_judgment))
+    # confusionMatrix(final_probSJ, as.factor(testingSJ$summary_judgment))
+    # confusionMatrix(final_probSET, as.factor(testingSET$settled))
 
 # Provide a list of the most important variables
 varImp(rfFitSJ)
-
-
-
-
+varImp(rfFitSET)
 
 # -------Other Random Stuff--------
 gbmFit1 <- train(summary_judgment~., 
@@ -132,3 +215,12 @@ predTrain<-predict.train(object=rfFit1,testing[,predictors],type="raw")
 table(predTrain)
 
 densityplot(rfFitSJ, pch = "|")
+
+
+
+# # Preprocess the data to more accurately represent the data
+# pp_valuesSJ <- preProcess(train_procSJ, 
+#                      method = c("center", "scale","YeoJohnson", "nzv")) 
+# 
+# # Final data set to form model from
+# transformedSJ <- predict(pp_valuesSJ, train_procSJ)
